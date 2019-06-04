@@ -65,6 +65,13 @@ hist(y)
 # This actually already looks like it has a 
 # bimodal beta error distribution, when in fact, 
 # it's beta-distributed *without* errors. 
+# Fitting a model to it should yield a perfect fit:
+data <- data.frame(y, x1, x2)
+glm1 <- glmmTMB(y ~ x1 + x2,
+                data = data,
+                family = poisson(link = "logit"))
+summary(glm1)
+# Yes, it returns the original coefficients
 
 # Actually, inv.logit(rnorm(250, 0, x)) produces a
 # seemingly bimodal distribution bounded at 0 and 1
@@ -73,12 +80,13 @@ hist(boot::inv.logit(rnorm(250, 0, 1)))
 hist(boot::inv.logit(rnorm(250, 0, 2)))
 hist(boot::inv.logit(rnorm(250, 0, 3)))
 
-# Suppose we still need to add beta-distributed errors.
-# Since response values need to be bounded at 0 and 1, 
-# keep generating new beta-distributed errors,
-# adding them to the raw response if within bounds,
-# or rejecting them if exceeding the bounds. This
-# maintains the beta-distributed errors.
+# Suppose we still need to add bimodal 
+# beta-distributed errors. Since response values 
+# need to be bounded at 0 and 1, keep generating 
+# new bimodal beta-distributed errors, adding 
+# them to the raw response if within bounds, or 
+# rejecting them if exceeding the bounds. This
+# maintains the beta distribution of the errors.
 epsilon_star <- rbeta(250, 0.5, 0.5)
 y_star <- y + epsilon_star - 0.5
 while(sum(y < 0 | y > 1)) { # untested
