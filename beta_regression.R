@@ -12,7 +12,7 @@ beta_ab2muphi <- function(a, b) {
   ))
 }
 
-# From mean-and-dispersion parameterization
+# From mean-and-precision parameterization
 beta_muphi2ab <- function(mu, phi) {
   return(c(
     mu * phi,
@@ -38,7 +38,8 @@ beta_pdf(0.9, 0.9, TRUE)
 beta_pdf(1, 0.9, TRUE)
 beta_pdf(5, 2)
 
-# Function for plotting beta pdf with center-shape parameterization
+# Function for plotting beta pdf with 
+# mean-precision parameterization
 beta_pdf2 <- function(mu, phi, add=FALSE) {
   ab_parameters <- beta_muphi2ab(mu, phi)
   a <- ab_parameters[1]
@@ -53,21 +54,31 @@ beta_pdf2 <- function(mu, phi, add=FALSE) {
   }
 }
 
+beta_pdf2(0.5, 2)
+beta_pdf2(0.5, 1, TRUE)
+beta_pdf2(0.5, 0.5, TRUE)
 
 # Randomly generate data with bistable beta-distributed residuals
+
+# We assume the following model:
+#    Y ~ Beta(mu, phi)
+#    logit(mu) = XB
+# In the first step, we generate random X,
+# specify coefficients B, and calculate
+# the vector mu.
 set.seed(1)
 x1 <- rnorm(250)
 x2 <- rnorm(250)
 beta1 <- -0.4
 beta2 <- 5
-y <- boot::inv.logit( beta1*x1 + beta2*x2 )
-hist(y)
+mu <- boot::inv.logit( beta1*x1 + beta2*x2 )
+hist(mu)
 # This actually already looks like it has a 
 # bimodal beta error distribution, when in fact, 
 # it's beta-distributed *without* errors. 
 # Fitting a model to it should yield a perfect fit:
-data <- data.frame(y, x1, x2)
-glm1 <- glmmTMB(y ~ x1 + x2,
+data <- data.frame(mu, x1, x2)
+glm1 <- glmmTMB(mu ~ x1 + x2,
                 data = data,
                 family = poisson(link = "logit"))
 summary(glm1)
@@ -80,17 +91,35 @@ hist(boot::inv.logit(rnorm(250, 0, 1)))
 hist(boot::inv.logit(rnorm(250, 0, 2)))
 hist(boot::inv.logit(rnorm(250, 0, 3)))
 
-# Suppose we still need to add bimodal 
-# beta-distributed errors. Since response values 
-# need to be bounded at 0 and 1, keep generating 
-# new bimodal beta-distributed errors, adding 
-# them to the raw response if within bounds, or 
-# rejecting them if exceeding the bounds. This
-# maintains the beta distribution of the errors.
-epsilon_star <- rbeta(250, 0.5, 0.5)
-y_star <- y + epsilon_star - 0.5
-while(sum(y < 0 | y > 1)) { # untested
-  y <- ifelse(y_star < 0 | y_star > 1, y, y_star)
-  epsilon_star <- rbeta(250, 0.5, 0.5)
-  y_star <- y + epsilon_star
-}
+# Now to simulate response values with bimodal
+# beta-distributed errors, assume mu_i to be the
+# mean of the beta distribution from which y_i
+# was drawn.
+set.seed(1)
+out <- lapply(mu, function(x) {rbeta(1, x, 1)}) # arbitrarily assume precision = 1
+y <- unlist(out)
+
+# Now attempt to fit model to the new data
+data <- data.frame(y, x1, x2)
+glm_beta <- glmmTMB(y ~ x1 + x2,
+                    data = data,
+                    family = beta_family(link = "logit"))
+summary(glm_beta)
+# Unable to return original coefficients,
+# though at least the signs and relative
+# magnitudes are consistent
+
+# What if data was generated from a beta 
+# distribution with a higher (but still < 2)
+# precision parameter? 
+set.seed(1)
+out <- lapply(mu, function(x) {rbeta(1, x, 1.9)})
+y_precise <- unlist(out)
+data <- data.frame(y_precise, x1, x2)
+glm_beta_precise <- glmmTMB(y_precise ~ x1 + x2,
+                            data = data, 
+                            family = beta_family(link = "logit"))
+summary(glm_beta_precise)
+# Still unable to return original coefficients, 
+# though AIC is lower (better) than before.
+
