@@ -123,3 +123,18 @@ summary(glm_beta_precise)
 # Still unable to return original coefficients, 
 # though AIC is lower (better) than before.
 
+# What if there was more data?
+set.seed(1)
+x1 <- rnorm(10000)
+x2 <- rnorm(10000)
+beta1 <- -0.4
+beta2 <- 5
+mu <- boot::inv.logit( beta1*x1 + beta2*x2 )
+set.seed(1)
+out <- lapply(mu, function(x) {rbeta(1, x, 1)}) # arbitrarily assume precision = 1
+y <- unlist(out)
+data <- data.frame(y, x1, x2)
+glm_beta <- glmmTMB(y ~ x1 + x2,
+                    data = data,
+                    family = beta_family(link = "logit"))
+summary(glm_beta)
