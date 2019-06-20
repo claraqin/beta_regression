@@ -138,3 +138,86 @@ glm_beta <- glmmTMB(y ~ x1 + x2,
                     data = data,
                     family = beta_family(link = "logit"))
 summary(glm_beta)
+
+# What if it was a much simpler model?
+# Try an intercept-only model.
+beta0 <- 0.5
+mu <- boot::inv.logit( beta0 * rep(1, 10000) )
+set.seed(1)
+out <- lapply(mu, function(x) {rbeta(1, x, 1)}) # arbitrarily assume precision = 1
+y <- unlist(out)
+data <- data.frame(y)
+glm_beta <- glmmTMB(y ~ 1,
+                    data = data,
+                    family = beta_family(link = "logit"))
+summary(glm_beta)
+
+# What if it was a much simpler model AND
+# the precision was higher?
+beta0 <- 0.5
+mu <- boot::inv.logit( beta0 * rep(1, 10000) )
+set.seed(1)
+out <- lapply(mu, function(x) {rbeta(1, x, 1.5)}) # arbitrarily assume precision = 1
+y <- unlist(out)
+data <- data.frame(y)
+glm_beta <- glmmTMB(y ~ 1,
+                    data = data,
+                    family = beta_family(link = "logit"))
+summary(glm_beta)
+
+
+# What if we try to use Bayesian modeling?
+# greta
+library(greta)
+library(tensorflow)
+
+# data (use same data as before)
+y <- as_data(y)
+
+# variables and priors
+mean <- normal(0.5, 1, truncation = c(0,1))
+precision <- student(3, 0, 1, truncation = c(0, Inf))
+
+# operations
+shapes <- beta_muphi2ab(mu = mean, phi = precision)
+shape1 <- shapes[1]
+shape2 <- shapes[2]
+
+# likelihood
+distribution(y) <- beta(shape1 = shape1, shape2 = shape2)
+
+# defining the model
+m <- model(mean, precision)
+
+# plotting
+plot(m)
+
+# sampling
+draws <- mcmc(m, n_samples = 1000)
+
+summary(draws)
+
+# Iterations = 1:1000
+# Thinning interval = 1 
+# Number of chains = 4 
+# Sample size per chain = 1000 
+# 
+# 1. Empirical mean and standard deviation for each variable,
+# plus standard error of the mean:
+#   
+#             Mean       SD  Naive SE Time-series SE
+# mean      0.2938 0.002546 4.026e-05      0.0001161
+# precision 2.1095 0.026968 4.264e-04      0.0012342
+# 
+# 2. Quantiles for each variable:
+#   
+#             2.5%    25%    50%    75%  97.5%
+# mean      0.2889 0.2921 0.2938 0.2955 0.2989
+# precision 2.0572 2.0913 2.1094 2.1274 2.1623
+
+# Note that this is still quite different from true parameters:
+# mean = 0.5
+# precision = 1.5
+
+library(bayesplot)
+bayesplot::mcmc_trace(draws)
