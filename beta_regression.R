@@ -140,7 +140,7 @@ x2 <- rnorm(10000)
 beta1 <- -0.4
 beta2 <- 5
 mu <- boot::inv.logit( beta1*x1 + beta2*x2 )
-phi <- 1.5 # as before
+phi <- 100
 set.seed(1)
 out <- lapply(mu, function(x) {rbeta2(1, x, phi)})
 y <- unlist(out)
@@ -148,18 +148,23 @@ data <- data.frame(y, x1, x2)
 # Need to transform y because its values
 # are inclusive of 0 and 1. We need it to
 # exclude those endpoints.
-data$y <- (data$y * (length(data) - 1) + 0.5) / length(data)
+data$y <- (data$y * (nrow(data) - 1) + 0.5) / nrow(data)
 glm_beta <- glmmTMB(y ~ x1 + x2,
                     data = data,
                     family = beta_family(link = "logit"))
 summary(glm_beta)
 # Estimates:
-# beta0 = -0.006
-# beta1 = -0.101
-# beta3 =  1.229
+# beta0 = -0.019
+# beta1 = -0.140
+# beta3 =  1.760
 
 # Unable to retrieve original parameters: 
 # beta1 = -0.4, beta2 = 5
+
+# (Note: The model retrieves the original 
+# parameters only if the precision is high.
+# However, any precision > 2 would not
+# represent a bistable (0,1) distribution.)
 
 # What if it was a much simpler model?
 # Try an intercept-only model.
@@ -189,15 +194,28 @@ library(tensorflow)
 
 # data (use same data as before)
 set.seed(1)
-out <- lapply(mu, function(x) {rbeta2(1, x, phi)})
+x1 <- rnorm(10000)
+x2 <- rnorm(10000)
+beta1_true <- -0.4
+beta2_true <- 1
+mu_true <- boot::inv.logit( beta1_true*x1 + beta2_true*x2 )
+phi_true <- 100 # much higher than before
+set.seed(1)
+out <- lapply(mu_true, function(x) {rbeta2(1, x, phi_true)})
 y <- unlist(out)
-y <- as_data(y)
+data <- data.frame(y, x1, x2)
+# Need to transform y because its values
+# are inclusive of 0 and 1. We need it to
+# exclude those endpoints.
+data$y <- (data$y * (nrow(data) - 1) + 0.5) / nrow(data)
 
-# variables and priors
-mean <- normal(0.5, 1, truncation = c(0,1))
+# variables, priors, operations
+beta1 <- normal(0, 5)
+beta2 <- normal(0, 5)
+mu <- boot::inv.logit(beta1 * data$x1 + beta2 * data$x2)
+mean <- normal(mu, 1, truncation = c(0,1))
 precision <- exponential(0.1)
 
-# operations
 shapes <- beta_muphi2ab(mu = mean, phi = precision)
 shape1 <- shapes[1]
 shape2 <- shapes[2]
@@ -206,13 +224,18 @@ shape2 <- shapes[2]
 distribution(y) <- beta(shape1 = shape1, shape2 = shape2)
 
 # defining the model
-m <- model(mean, precision)
+m <- model(beta1, beta2)
 
 # plotting
 plot(m)
 
 # sampling
-draws <- mcmc(m, n_samples = 1000)
+draws <- mcmc(m, n_samples = 1000,
+              initial_values = initials(
+                beta1 = -0.4,
+                beta2 = 1,
+                precision = 100
+              ))
 
 summary(draws)
 
@@ -224,23 +247,20 @@ summary(draws)
 # 1. Empirical mean and standard deviation for each variable,
 # plus standard error of the mean:
 #   
-#   Mean      SD  Naive SE Time-series SE
-# mean      0.294 0.00242 3.826e-05      0.0000596
-# precision 2.111 0.02697 4.264e-04      0.0006273
+#   Mean     SD Naive SE Time-series SE
+# beta1 -0.04225 0.1233  0.00195       0.009205
+# beta2 -0.03838 0.1442  0.00228       0.013758
 # 
 # 2. Quantiles for each variable:
 #   
-#   2.5%    25%   50%    75%  97.5%
-# mean      0.2894 0.2923 0.294 0.2956 0.2988
-# precision 2.0603 2.0925 2.111 2.1284 2.1650
-
-# Note that this is still quite different from true parameters:
-# mean = 0.5
-# precision = 1.5
+#   2.5%     25%      50%     75%  97.5%
+# beta1 -0.2587 -0.1496 -0.03126 0.05977 0.1664
+# beta2 -0.2886 -0.1519 -0.03837 0.05474 0.2424
 
 library(bayesplot)
+pdf('figures/bayesplot1.pdf')
 bayesplot::mcmc_trace(draws)
-
+dev.off()
 
 
 # Try more informative priors
