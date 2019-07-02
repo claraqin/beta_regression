@@ -138,7 +138,7 @@ set.seed(1)
 x1 <- rnorm(10000)
 x2 <- rnorm(10000)
 beta1 <- -0.4
-beta2 <- 5
+beta2 <- 1
 mu <- boot::inv.logit( beta1*x1 + beta2*x2 )
 phi <- 100
 set.seed(1)
@@ -154,12 +154,12 @@ glm_beta <- glmmTMB(y ~ x1 + x2,
                     family = beta_family(link = "logit"))
 summary(glm_beta)
 # Estimates:
-# beta0 = -0.019
-# beta1 = -0.140
-# beta3 =  1.760
-
-# Unable to retrieve original parameters: 
-# beta1 = -0.4, beta2 = 5
+# Overdispersion parameter for beta family (): 99.7 
+# Conditional model:
+#   Estimate Std. Error z value Pr(>|z|)    
+# (Intercept)  0.0004018  0.0022100     0.2    0.856    
+# x1          -0.3998361  0.0022493  -177.8   <2e-16 ***
+#   x2           1.0022905  0.0026594   376.9   <2e-16 ***
 
 # (Note: The model retrieves the original 
 # parameters only if the precision is high.
@@ -193,7 +193,7 @@ library(greta)
 library(tensorflow)
 
 # data (use same data as before)
-set.seed(1)
+set.seed(987453)
 x1 <- rnorm(10000)
 x2 <- rnorm(10000)
 beta1_true <- -0.4
@@ -213,10 +213,9 @@ data$y <- (data$y * (nrow(data) - 1) + 0.5) / nrow(data)
 beta1 <- normal(0, 5)
 beta2 <- normal(0, 5)
 mu <- boot::inv.logit(beta1 * data$x1 + beta2 * data$x2)
-mean <- normal(mu, 1, truncation = c(0,1))
-precision <- exponential(0.1)
+phi <- exponential(0.01)
 
-shapes <- beta_muphi2ab(mu = mean, phi = precision)
+shapes <- beta_muphi2ab(mu = mu, phi = phi)
 shape1 <- shapes[1]
 shape2 <- shapes[2]
 
@@ -224,18 +223,19 @@ shape2 <- shapes[2]
 distribution(y) <- beta(shape1 = shape1, shape2 = shape2)
 
 # defining the model
-m <- model(beta1, beta2)
+m <- model(beta1, beta2, phi)
 
 # plotting
 plot(m)
 
 # sampling
 draws <- mcmc(m, n_samples = 1000,
-              initial_values = initials(
-                beta1 = -0.4,
-                beta2 = 1,
-                precision = 100
-              ))
+              # initial_values = initials(
+              #   beta1 = -0.4,
+              #   beta2 = 1,
+              #   precision = 100
+              # )
+              )
 
 summary(draws)
 
@@ -247,15 +247,17 @@ summary(draws)
 # 1. Empirical mean and standard deviation for each variable,
 # plus standard error of the mean:
 #   
-#   Mean     SD Naive SE Time-series SE
-# beta1 -0.04225 0.1233  0.00195       0.009205
-# beta2 -0.03838 0.1442  0.00228       0.013758
+#   Mean      SD Naive SE Time-series SE
+# beta1 -0.04366 0.92405 0.014610      3.147e-07
+# beta2 -0.09874 0.03168 0.000501      1.029e-08
+# phi    1.02519 0.10254 0.001621      8.530e-08
 # 
 # 2. Quantiles for each variable:
 #   
-#   2.5%     25%      50%     75%  97.5%
-# beta1 -0.2587 -0.1496 -0.03126 0.05977 0.1664
-# beta2 -0.2886 -0.1519 -0.03837 0.05474 0.2424
+#   2.5%      25%     50%      75%    97.5%
+# beta1 -1.6436 -0.06669  0.4817  0.50471  0.50564
+# beta2 -0.1340 -0.12763 -0.1007 -0.07176 -0.05964
+# phi    0.8861  0.97982  1.0198  1.06515  1.17513
 
 library(bayesplot)
 pdf('figures/bayesplot1.pdf')
