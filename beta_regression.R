@@ -358,6 +358,58 @@ pdf('figures/bayesplot3.pdf')
 bayesplot::mcmc_trace(draws3)
 dev.off()
 
+# Let's try an even simpler model: a beta
+# regression with only an intercept
+n <- 1000
+set.seed(135237)
+beta0_true <- 2
+mu_true <- boot::inv.logit( rep(beta0_true, n) )
+phi_true <- 100
+hist(mu_true)
+set.seed(213784921)
+out <- lapply(mu_true, function(x) {rbeta2(1, x, phi_true)})
+y <- as_data(exclude01(unlist(out)))
+beta0 <- normal(0, 5)
+mu <- boot::inv.logit(beta0)
+phi <- normal(100, 5, truncation = c(0,Inf)) # strong prior for phi
+shapes <- beta_muphi2ab(mu = mu, phi = phi)
+shape1 <- shapes$a
+shape2 <- shapes$b
+distribution(y) <- beta(shape1 = shape1, shape2 = shape2)
+m4 <- model(beta0, phi)
+plot(m4)
+draws4 <- mcmc(m4, n_samples = 1000,
+               # initial_values = initials(
+               #   beta0 = 2,
+               #   beta1 = -0.4,
+               #   phi = 100
+               # )
+)
+summary(draws4)
+
+# Iterations = 1:1000
+# Thinning interval = 1 
+# Number of chains = 4 
+# Sample size per chain = 1000 
+# 
+# 1. Empirical mean and standard deviation for each variable,
+# plus standard error of the mean:
+#   
+#   Mean        SD  Naive SE Time-series SE
+# beta0     -2.115     14.55    0.2301         0.1623
+# phi   107039.206 149443.85 2362.9147      8903.0707
+# 
+# 2. Quantiles for each variable:
+#   
+#   2.5%       25%    50%       75%     97.5%
+# beta0 -16.88532 -16.59434 -4.022     12.49     14.84
+# phi     0.01743   0.01761 85.840 240060.94 354822.85
+
+pdf('figures/bayesplot4.pdf')
+bayesplot::mcmc_trace(draws4)
+dev.off()
+
+
 # Let's try a simple linear Bayesian regression:
 # data
 n <- 100
@@ -377,10 +429,10 @@ mean <- beta0 + beta1 * x1
 # likelihood
 distribution(y) <- normal(mean, sd)
 # model
-m4 <- model(beta0, beta1, sd)
-plot(m4)
+m5 <- model(beta0, beta1, sd)
+plot(m5)
 # MCMC samples
-draws4 <- mcmc(m4, n_samples = 1000)
+draws5 <- mcmc(m5, n_samples = 1000)
 
-summary(draws4)
-bayesplot::mcmc_trace(draws4)
+summary(draws5)
+bayesplot::mcmc_trace(draws5)
