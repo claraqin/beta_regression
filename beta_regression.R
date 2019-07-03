@@ -229,7 +229,7 @@ beta1 <- normal(0, 5)
 beta2 <- normal(0, 5)
 mu <- boot::inv.logit(beta1 * data$x1 + beta2 * data$x2)
 # phi <- exponential(0.01)
-phi <- normal(100, 5, truncate = c(0,Inf)) # strong prior for phi
+phi <- normal(100, 5, truncation = c(0,Inf)) # strong prior for phi
 
 shapes <- beta_muphi2ab(mu = mu, phi = phi)
 shape1 <- shapes$a
@@ -245,39 +245,142 @@ m <- model(beta1, beta2, phi)
 plot(m)
 
 # sampling
-draws <- mcmc(m, n_samples = 1000
-              )
+draws <- mcmc(m, n_samples = 10000,
+              initial_values = initials(
+                beta1 = -0.4,
+                beta2 = 1,
+                phi = 100
+              ))
 
 summary(draws)
 
-# Iterations = 1:1000
+# Iterations = 1:10000
 # Thinning interval = 1 
 # Number of chains = 4 
-# Sample size per chain = 1000 
+# Sample size per chain = 10000 
 # 
 # 1. Empirical mean and standard deviation for each variable,
 # plus standard error of the mean:
 #   
-#          Mean      SD Naive SE Time-series SE
-# beta1 0.25806 0.21505 0.003400      0.0003724
-# beta2 0.03413 0.55299 0.008744      0.0013395
-# phi   1.00736 0.07716 0.001220      0.0015766
+#        Mean        SD  Naive SE Time-series SE
+# beta1 -0.40 1.836e-05 9.180e-08      3.242e-06
+# beta2  1.00 3.452e-05 1.726e-07      6.139e-06
+# phi   99.99 3.726e-03 1.863e-05      7.257e-04
 # 
 # 2. Quantiles for each variable:
 #   
-#           2.5%     25%     50%     75%  97.5%
-# beta1  0.08859  0.1021  0.1603 0.31803 0.6217
-# beta2 -0.35370 -0.3019 -0.2541 0.07894 0.9924
-# phi    0.93446  0.9394  0.9810 1.05164 1.1355
+#          2.5%   25%   50%   75% 97.5%
+# beta1 -0.4001 -0.40 -0.40 -0.40  -0.4
+# beta2  1.0000  1.00  1.00  1.00   1.0
+# phi   99.9828 99.99 99.99 99.99 100.0
 
-# So if you use a high precision parameter to
-# and a strong prior for precision, it kind of
-# works!
+# It only generates accurate estimates when
+# (1) the precision parameter is high,
+# (2) there is a strong prior for precision, and
+# (3) the initial values are set to the true values.
 
-# The chains don't converge, though...
-# Maybe if I ran it for longer.
+# Even so, the chains don't converge within
+# 10,000 samples.
 
 library(bayesplot)
 pdf('figures/bayesplot1.pdf')
 bayesplot::mcmc_trace(draws)
 dev.off()
+
+
+# Let's try a simple one-covariate model,
+# and decrease the size of the data,
+# with everything else kept the same.
+n <- 1000
+x1 <- rnorm(n)
+beta1_true <- -0.4
+mu_true <- boot::inv.logit( beta1_true*x1 )
+set.seed(213784921)
+out <- lapply(mu_true, function(x) {rbeta2(1, x, phi_true)})
+y <- as_data(exclude01(unlist(out)))
+x1 <- as_data(x1)
+beta1 <- normal(0, 5)
+mu <- boot::inv.logit(beta1 * x1)
+phi <- normal(100, 5, truncation = c(0,Inf)) # strong prior for phi
+shapes <- beta_muphi2ab(mu = mu, phi = phi)
+shape1 <- shapes$a
+shape2 <- shapes$b
+distribution(y) <- beta(shape1 = shape1, shape2 = shape2)
+m2 <- model(beta1, phi)
+plot(m2)
+draws2 <- mcmc(m2, n_samples = 1000,
+              # initial_values = initials(
+              #   beta1 = -0.4,
+              #   phi = 100
+              # )
+              )
+summary(draws2)
+
+pdf('figures/bayesplot2.pdf')
+bayesplot::mcmc_trace(draws2)
+dev.off()
+
+# Let's try a simple one-covariate model,
+# with wider range of x1, and a non-zero
+# intercept.
+n <- 1000
+set.seed(135237)
+x1 <- rnorm(n, 3, 5)
+beta0_true <- 2
+beta1_true <- -0.4
+mu_true <- boot::inv.logit( beta0_true + beta1_true*x1 )
+phi_true <- 100
+hist(mu_true)
+set.seed(213784921)
+out <- lapply(mu_true, function(x) {rbeta2(1, x, phi_true)})
+y <- as_data(exclude01(unlist(out)))
+x1 <- as_data(x1)
+beta0 <- normal(0, 5)
+beta1 <- normal(0, 2)
+mu <- boot::inv.logit(beta0 + beta1 * x1)
+phi <- normal(100, 5, truncation = c(0,Inf)) # strong prior for phi
+shapes <- beta_muphi2ab(mu = mu, phi = phi)
+shape1 <- shapes$a
+shape2 <- shapes$b
+distribution(y) <- beta(shape1 = shape1, shape2 = shape2)
+m3 <- model(beta0, beta1, phi)
+plot(m3)
+draws3 <- mcmc(m3, n_samples = 1000,
+               # initial_values = initials(
+               #   beta0 = 2,
+               #   beta1 = -0.4,
+               #   phi = 100
+               # )
+               )
+summary(draws3)
+
+pdf('figures/bayesplot3.pdf')
+bayesplot::mcmc_trace(draws3)
+dev.off()
+
+# Let's try a simple linear Bayesian regression:
+# data
+n <- 100
+set.seed(543258)
+x1 <- rnorm(n, 3, 5)
+beta0_true <- 2
+beta1_true <- -0.4
+y <- beta0_true + beta1_true * x1 + rnorm(100, 0, 0.5)
+x1 <- as_data(x1)
+y <- as_data(y)
+#variables and priors
+beta0 <- normal(0,5)
+beta1 <- normal(0,5)
+sd <- student(3, 0, 1, truncation = c(0, Inf))
+# operations
+mean <- beta0 + beta1 * x1
+# likelihood
+distribution(y) <- normal(mean, sd)
+# model
+m4 <- model(beta0, beta1, sd)
+plot(m4)
+# MCMC samples
+draws4 <- mcmc(m4, n_samples = 1000)
+
+summary(draws4)
+bayesplot::mcmc_trace(draws4)

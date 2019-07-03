@@ -1,4 +1,4 @@
 # beta_regression
-Beta regression demo using glmmTMB
+Beta regression demo using glmmTMB and greta
 
 
