@@ -222,12 +222,15 @@ phi_true <- 100 # much higher than before
 set.seed(1)
 out <- lapply(mu_true, function(x) {rbeta2(1, x, phi_true)})
 y <- exclude01(unlist(out))
-data <- data.frame(y, x1, x2)
+
+y <- as_data(y)
+x1 <- as_data(x1)
+x2 <- as_data(x2)
 
 # variables, priors, operations
 beta1 <- normal(0, 5)
 beta2 <- normal(0, 5)
-mu <- boot::inv.logit(beta1 * data$x1 + beta2 * data$x2)
+mu <- boot::inv.logit(beta1 * x1 + beta2 * x2)
 # phi <- exponential(0.01)
 phi <- normal(100, 5, truncation = c(0,Inf)) # strong prior for phi
 
@@ -235,8 +238,25 @@ shapes <- beta_muphi2ab(mu = mu, phi = phi)
 shape1 <- shapes$a
 shape2 <- shapes$b
 
+# # JAGS version of priors (does not include operations)
+# eps <- 1E-3
+# for (j in 1:n.ft) {
+#   phi[j] ~ dnorm(100, eps)
+#   beta[1,j] ~ dnorm(0, eps)
+#   beta[2,j] ~ dnorm(0, eps)
+# }
+
 # likelihood
 distribution(y) <- beta(shape1 = shape1, shape2 = shape2)
+
+# # JAGS version of likelihood (includes reshuffled parts from operations)
+# for (1 in 1:n.plt) {
+#   y[i] ~ dbeta(shape1[i], shape2[i])
+#   mu[i] <- boot::inv.logit(...)
+#   shapes <- beta_muphi2ab(mu = mu[i], phi = phi[i])
+#   shape1[i] <- ...
+#   shape2[i] <- ...
+# }
 
 # defining the model
 m <- model(beta1, beta2, phi)
@@ -245,12 +265,13 @@ m <- model(beta1, beta2, phi)
 plot(m)
 
 # sampling
-draws <- mcmc(m, n_samples = 10000,
-              initial_values = initials(
-                beta1 = -0.4,
-                beta2 = 1,
-                phi = 100
-              ))
+draws <- mcmc(m, n_samples = 1000,
+              # initial_values = initials(
+              #   beta1 = -0.4,
+              #   beta2 = 1,
+              #   phi = 100
+              # )
+              )
 
 summary(draws)
 
