@@ -40,7 +40,7 @@ beta_pdf <- function(a, b, add=FALSE) {
            y = dbeta(grid, a, b))
   } else {
     plot(x = grid,
-           y = dbeta(grid, a, b))
+         y = dbeta(grid, a, b))
   }
 }
 
@@ -222,12 +222,15 @@ phi_true <- 100 # much higher than before
 set.seed(1)
 out <- lapply(mu_true, function(x) {rbeta2(1, x, phi_true)})
 y <- exclude01(unlist(out))
-data <- data.frame(y, x1, x2)
+
+y <- as_data(y)
+x1 <- as_data(x1)
+x2 <- as_data(x2)
 
 # variables, priors, operations
 beta1 <- normal(0, 5)
 beta2 <- normal(0, 5)
-mu <- boot::inv.logit(beta1 * data$x1 + beta2 * data$x2)
+mu <- boot::inv.logit(beta1 * x1 + beta2 * x2)
 # phi <- exponential(0.01)
 phi <- normal(100, 5, truncation = c(0,Inf)) # strong prior for phi
 
@@ -245,12 +248,13 @@ m <- model(beta1, beta2, phi)
 plot(m)
 
 # sampling
-draws <- mcmc(m, n_samples = 10000,
-              initial_values = initials(
-                beta1 = -0.4,
-                beta2 = 1,
-                phi = 100
-              ))
+draws <- mcmc(m, n_samples = 1000,
+              # initial_values = initials(
+              #   beta1 = -0.4,
+              #   beta2 = 1,
+              #   phi = 100
+              # )
+)
 
 summary(draws)
 
@@ -309,11 +313,11 @@ distribution(y) <- beta(shape1 = shape1, shape2 = shape2)
 m2 <- model(beta1, phi)
 plot(m2)
 draws2 <- mcmc(m2, n_samples = 1000,
-              # initial_values = initials(
-              #   beta1 = -0.4,
-              #   phi = 100
-              # )
-              )
+               # initial_values = initials(
+               #   beta1 = -0.4,
+               #   phi = 100
+               # )
+)
 summary(draws2)
 
 pdf('figures/bayesplot2.pdf')
@@ -351,7 +355,7 @@ draws3 <- mcmc(m3, n_samples = 1000,
                #   beta1 = -0.4,
                #   phi = 100
                # )
-               )
+)
 summary(draws3)
 
 pdf('figures/bayesplot3.pdf')
