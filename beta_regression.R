@@ -206,11 +206,9 @@ summary(glm_beta)
 # (and change the coefficients and increase
 # the precision parameter?)
 
-# greta
-library(greta)
-library(tensorflow)
-
-# data
+# R2jags version
+library(rjags)
+library(R2jags)
 n <- 10000
 set.seed(987453)
 x1 <- rnorm(n)
@@ -222,238 +220,34 @@ phi_true <- 100 # much higher than before
 set.seed(1)
 out <- lapply(mu_true, function(x) {rbeta2(1, x, phi_true)})
 y <- exclude01(unlist(out))
-
-y <- as_data(y)
-x1 <- as_data(x1)
-x2 <- as_data(x2)
-
-# variables, priors, operations
-beta1 <- normal(0, 5)
-beta2 <- normal(0, 5)
-mu <- boot::inv.logit(beta1 * x1 + beta2 * x2)
-# phi <- exponential(0.01)
-phi <- normal(100, 5, truncation = c(0,Inf)) # strong prior for phi
-
-shapes <- beta_muphi2ab(mu = mu, phi = phi)
-shape1 <- shapes$a
-shape2 <- shapes$b
-
-# # JAGS version of priors (does not include operations)
-# eps <- 1E-3
-# for (j in 1:n.ft) {
-#   phi[j] ~ dnorm(100, eps)
-#   beta[1,j] ~ dnorm(0, eps)
-#   beta[2,j] ~ dnorm(0, eps)
-# }
-
-# likelihood
-distribution(y) <- beta(shape1 = shape1, shape2 = shape2)
-
-# # JAGS version of likelihood (includes reshuffled parts from operations)
-# for (1 in 1:n.plt) {
-#   y[i] ~ dbeta(shape1[i], shape2[i])
-#   mu[i] <- boot::inv.logit(...)
-#   shapes <- beta_muphi2ab(mu = mu[i], phi = phi[i])
-#   shape1[i] <- ...
-#   shape2[i] <- ...
-# }
-
-# defining the model
-m <- model(beta1, beta2, phi)
-
-# plotting
-plot(m)
-
-# sampling
-draws <- mcmc(m, n_samples = 1000,
-              # initial_values = initials(
-              #   beta1 = -0.4,
-              #   beta2 = 1,
-              #   phi = 100
-              # )
-              )
-
-summary(draws)
-
-# Iterations = 1:10000
-# Thinning interval = 1 
-# Number of chains = 4 
-# Sample size per chain = 10000 
-# 
-# 1. Empirical mean and standard deviation for each variable,
-# plus standard error of the mean:
-#   
-#        Mean        SD  Naive SE Time-series SE
-# beta1 -0.40 1.836e-05 9.180e-08      3.242e-06
-# beta2  1.00 3.452e-05 1.726e-07      6.139e-06
-# phi   99.99 3.726e-03 1.863e-05      7.257e-04
-# 
-# 2. Quantiles for each variable:
-#   
-#          2.5%   25%   50%   75% 97.5%
-# beta1 -0.4001 -0.40 -0.40 -0.40  -0.4
-# beta2  1.0000  1.00  1.00  1.00   1.0
-# phi   99.9828 99.99 99.99 99.99 100.0
-
-# It only generates accurate estimates when
-# (1) the precision parameter is high,
-# (2) there is a strong prior for precision, and
-# (3) the initial values are set to the true values.
-
-# Even so, the chains don't converge within
-# 10,000 samples.
-
-library(bayesplot)
-pdf('figures/bayesplot1.pdf')
-bayesplot::mcmc_trace(draws)
-dev.off()
-
-
-# Let's try a simple one-covariate model,
-# and decrease the size of the data,
-# with everything else kept the same.
-n <- 1000
-x1 <- rnorm(n)
-beta1_true <- -0.4
-mu_true <- boot::inv.logit( beta1_true*x1 )
-set.seed(213784921)
-out <- lapply(mu_true, function(x) {rbeta2(1, x, phi_true)})
-y <- as_data(exclude01(unlist(out)))
-x1 <- as_data(x1)
-beta1 <- normal(0, 5)
-mu <- boot::inv.logit(beta1 * x1)
-phi <- normal(100, 5, truncation = c(0,Inf)) # strong prior for phi
-shapes <- beta_muphi2ab(mu = mu, phi = phi)
-shape1 <- shapes$a
-shape2 <- shapes$b
-distribution(y) <- beta(shape1 = shape1, shape2 = shape2)
-m2 <- model(beta1, phi)
-plot(m2)
-draws2 <- mcmc(m2, n_samples = 1000,
-              # initial_values = initials(
-              #   beta1 = -0.4,
-              #   phi = 100
-              # )
-              )
-summary(draws2)
-
-pdf('figures/bayesplot2.pdf')
-bayesplot::mcmc_trace(draws2)
-dev.off()
-
-# Let's try a simple one-covariate model,
-# with wider range of x1, and a non-zero
-# intercept.
-n <- 1000
-set.seed(135237)
-x1 <- rnorm(n, 3, 5)
-beta0_true <- 2
-beta1_true <- -0.4
-mu_true <- boot::inv.logit( beta0_true + beta1_true*x1 )
-phi_true <- 100
-hist(mu_true)
-set.seed(213784921)
-out <- lapply(mu_true, function(x) {rbeta2(1, x, phi_true)})
-y <- as_data(exclude01(unlist(out)))
-x1 <- as_data(x1)
-beta0 <- normal(0, 5)
-beta1 <- normal(0, 2)
-mu <- boot::inv.logit(beta0 + beta1 * x1)
-phi <- normal(100, 5, truncation = c(0,Inf)) # strong prior for phi
-shapes <- beta_muphi2ab(mu = mu, phi = phi)
-shape1 <- shapes$a
-shape2 <- shapes$b
-distribution(y) <- beta(shape1 = shape1, shape2 = shape2)
-m3 <- model(beta0, beta1, phi)
-plot(m3)
-draws3 <- mcmc(m3, n_samples = 1000,
-               # initial_values = initials(
-               #   beta0 = 2,
-               #   beta1 = -0.4,
-               #   phi = 100
-               # )
-               )
-summary(draws3)
-
-pdf('figures/bayesplot3.pdf')
-bayesplot::mcmc_trace(draws3)
-dev.off()
-
-# Let's try an even simpler model: a beta
-# regression with only an intercept
-n <- 1000
-set.seed(135237)
-beta0_true <- 2
-mu_true <- boot::inv.logit( rep(beta0_true, n) )
-phi_true <- 100
-hist(mu_true)
-set.seed(213784921)
-out <- lapply(mu_true, function(x) {rbeta2(1, x, phi_true)})
-y <- as_data(exclude01(unlist(out)))
-beta0 <- normal(0, 5)
-mu <- boot::inv.logit(beta0)
-phi <- normal(100, 5, truncation = c(0,Inf)) # strong prior for phi
-shapes <- beta_muphi2ab(mu = mu, phi = phi)
-shape1 <- shapes$a
-shape2 <- shapes$b
-distribution(y) <- beta(shape1 = shape1, shape2 = shape2)
-m4 <- model(beta0, phi)
-plot(m4)
-draws4 <- mcmc(m4, n_samples = 1000,
-               # initial_values = initials(
-               #   beta0 = 2,
-               #   beta1 = -0.4,
-               #   phi = 100
-               # )
+jags_data <- list(
+  "y" = y,
+  "x1" = x1,
+  "x2" = x2,
+  "N" = length(y)
 )
-summary(draws4)
+jags_mod <- function() {
+  # likelihood
+  for(i in 1:N) {
+    y[i] ~ dbeta(shape1[i], shape2[i])
+    shape1[i] <- phi * mu[i]
+    shape2[i] <- phi * (1 - mu[i])
+    odds[i] <- exp(beta1 * x1[i] + beta2 * x2[i])
+    mu[i] <- odds[i] / (1 + odds[i])
+  }
+  
+  # priors
+  beta1 ~ dnorm(0,5)
+  beta2 ~ dnorm(0,5)
+  phi ~ dnorm(100, 5)
+}
 
-# Iterations = 1:1000
-# Thinning interval = 1 
-# Number of chains = 4 
-# Sample size per chain = 1000 
-# 
-# 1. Empirical mean and standard deviation for each variable,
-# plus standard error of the mean:
-#   
-#   Mean        SD  Naive SE Time-series SE
-# beta0     -2.115     14.55    0.2301         0.1623
-# phi   107039.206 149443.85 2362.9147      8903.0707
-# 
-# 2. Quantiles for each variable:
-#   
-#   2.5%       25%    50%       75%     97.5%
-# beta0 -16.88532 -16.59434 -4.022     12.49     14.84
-# phi     0.01743   0.01761 85.840 240060.94 354822.85
+# parameters to monitor
+jags_par <- c("beta1", "beta2", "phi")
 
-pdf('figures/bayesplot4.pdf')
-bayesplot::mcmc_trace(draws4)
-dev.off()
+jags_draws  <- jags.parallel(data = jags_data,
+                             model.file = jags_mod,
+                             parameters.to.save = jags_par,
+                             n.chains = 4, n.iter = 10000)
 
 
-# Let's try a simple linear Bayesian regression:
-# data
-n <- 100
-set.seed(543258)
-x1 <- rnorm(n, 3, 5)
-beta0_true <- 2
-beta1_true <- -0.4
-y <- beta0_true + beta1_true * x1 + rnorm(100, 0, 0.5)
-x1 <- as_data(x1)
-y <- as_data(y)
-#variables and priors
-beta0 <- normal(0,5)
-beta1 <- normal(0,5)
-sd <- student(3, 0, 1, truncation = c(0, Inf))
-# operations
-mean <- beta0 + beta1 * x1
-# likelihood
-distribution(y) <- normal(mean, sd)
-# model
-m5 <- model(beta0, beta1, sd)
-plot(m5)
-# MCMC samples
-draws5 <- mcmc(m5, n_samples = 1000)
-
-summary(draws5)
-bayesplot::mcmc_trace(draws5)
