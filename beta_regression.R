@@ -251,7 +251,9 @@ system.time(
                                parameters.to.save = jags_par,
                                n.chains = 4, n.iter = 10000,
                                n.burnin = 1000)
-)print(jags_draws)
+)
+
+print(jags_draws)
 
 plot(jags_draws)
 
