@@ -245,9 +245,15 @@ jags_mod <- function() {
 # parameters to monitor
 jags_par <- c("beta1", "beta2", "phi")
 
-jags_draws  <- jags.parallel(data = jags_data,
-                             model.file = jags_mod,
-                             parameters.to.save = jags_par,
-                             n.chains = 4, n.iter = 10000)
+system.time(
+  jags_draws  <- jags.parallel(data = jags_data,
+                               model.file = jags_mod,
+                               parameters.to.save = jags_par,
+                               n.chains = 4, n.iter = 10000,
+                               n.burnin = 1000)
+)print(jags_draws)
 
+plot(jags_draws)
+
+traceplot(jags_draws)
 
