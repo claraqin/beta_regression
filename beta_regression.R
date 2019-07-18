@@ -252,10 +252,33 @@ system.time(
                                n.chains = 4, n.iter = 10000,
                                n.burnin = 1000)
 )
+# user   system  elapsed 
+# 5.844    6.788 2933.435 
 
 print(jags_draws)
+# Inference for Bugs model at "jags_mod", fit using jags,
+# 4 chains, each with 10000 iterations (first 1000 discarded), n.thin = 9
+# n.sims = 4000 iterations saved
+# mu.vect sd.vect       2.5%        25%        50%        75%
+#   beta1        -0.400   0.002     -0.404     -0.401     -0.400     -0.398
+# beta2         1.002   0.003      0.997      1.000      1.002      1.004
+# phi          99.958   0.423     99.125     99.670     99.962    100.242
+# deviance -34258.611   2.077 -34260.636 -34260.048 -34259.230 -34257.867
+# 97.5%  Rhat n.eff
+# beta1        -0.395 1.001  4000
+# beta2         1.007 1.001  3300
+# phi         100.793 1.001  4000
+# deviance -34253.029 1.001  4000
+# 
+# For each parameter, n.eff is a crude measure of effective sample size,
+# and Rhat is the potential scale reduction factor (at convergence, Rhat=1).
+# 
+# DIC info (using the rule, pD = var(deviance)/2)
+# pD = 2.2 and DIC = -34256.5
+# DIC is an estimate of expected predictive error (lower deviance is better).
 
+pdf("figures/jags1_plot.pdf")
 plot(jags_draws)
+dev.off()
 
 traceplot(jags_draws)
-
