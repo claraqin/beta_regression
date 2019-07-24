@@ -40,7 +40,7 @@ beta_pdf <- function(a, b, add=FALSE) {
            y = dbeta(grid, a, b))
   } else {
     plot(x = grid,
-           y = dbeta(grid, a, b))
+         y = dbeta(grid, a, b))
   }
 }
 
@@ -220,6 +220,7 @@ phi_true <- 100 # much higher than before
 set.seed(1)
 out <- lapply(mu_true, function(x) {rbeta2(1, x, phi_true)})
 y <- exclude01(unlist(out))
+
 jags_data <- list(
   "y" = y,
   "x1" = x1,
@@ -241,6 +242,7 @@ jags_mod <- function() {
   beta2 ~ dnorm(0,5)
   phi ~ dnorm(100, 5)
 }
+
 
 # parameters to monitor
 jags_par <- c("beta1", "beta2", "phi")
